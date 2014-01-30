@@ -15,7 +15,7 @@ strings below
 
 Preliminaries
 -------------
-
+hello
 Before starting this assignment:
 
 * Download and install the [Haskell Platform](http://www.haskell.org/platform/).
