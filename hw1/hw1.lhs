@@ -8,14 +8,11 @@ Part 0: All About You
 Tell us your name, email and student ID, by replacing the respective
 strings below
 
-> myName  = "Sriskanda Shamasunder"
-> myEmail = "sshamasu@eng.ucsd.edu"
-> mySID   = "A53054738":
 
 
 Preliminaries
 -------------
-hello
+
 Before starting this assignment:
 
 * Download and install the [Haskell Platform](http://www.haskell.org/platform/).
@@ -51,6 +48,11 @@ We declare that this is the Hw1 module and import some libraries:
 > import SOE
 > import Play
 > import XMLTypes
+> import Draw
+
+> myName  = "Sriskanda Shamasunder"
+> myEmail = "sshamasu@eng.ucsd.edu"
+> mySID   = "A53054738"
 
 Part 1: Defining and Manipulating Shapes
 ----------------------------------------
@@ -76,15 +78,21 @@ The following are the definitions of shapes:
    built with the Polygon constructor.
 
 > rectangle :: Side -> Side -> Shape
-> rectangle = error "Define me!" 
+> rectangle x y  = Polygon [(0.0, 0.0), (x, 0.0), (0.0, y), (x, y)]
 
 > rtTriangle :: Side -> Side -> Shape
-> rtTriangle = error "Define me!" 
+> rtTriangle x y = Polygon [(0.0, 0.0), (x, 0.0), (0.0, y)]
 
 2. Define a function
 
 > sides :: Shape -> Int
-> sides = error "Define me!"
+> sides (Rectangle x y) = 4
+> sides (Ellipse r r') = 42
+> sides (RtTriangle s s') = 3
+> sides (Polygon x) 
+> 	| l < 3 = 0
+>	| otherwise = l
+>	where l = length(x)
 
   which returns the number of sides a given shape has.
   For the purposes of this exercise, an ellipse has 42 sides,
@@ -93,7 +101,7 @@ The following are the definitions of shapes:
 3. Define a function
 
 > bigger :: Shape -> Float -> Shape
-> bigger = error "Define me!"
+> bigger = error "Define me"
 
   that takes a shape `s` and expansion factor `e` and returns
   a shape which is the same as (i.e., similar to in the geometric sense)
@@ -114,7 +122,10 @@ The following are the definitions of shapes:
    Write a function
    
 > hanoi :: Int -> String -> String -> String -> IO ()
-> hanoi = error "Define me!"
+> hanoi 1 s d t = putStrLn ("move disc from " ++ s ++ " to " ++ d)
+> hanoi n s d t = do (hanoi (n-1) s t d)
+>		     putStrLn ("move disc from " ++ s ++ " to " ++ d)
+>		     (hanoi (n-1) t d s)
 
   that, given the number of discs $n$ and peg names $a$, $b$, and $c$,
   where a is the starting peg,
@@ -139,6 +150,14 @@ Part 2: Drawing Fractals
 
 Write a function `sierpinskiCarpet` that displays this figure on the
 screen:
+
+> main0
+>   = runGraphics (
+>     do w <- openWindow "Drawing Shapes" (xWin,yWin)
+>        drawInWindow w (withColor Red  (shapeToGraphic (Rectangle 10 20)))
+>        spaceClose w
+>     )
+
 
 > sierpinskiCarpet :: IO ()
 > sierpinskiCarpet = error "Define me!"
