@@ -169,16 +169,16 @@ screen:
 > xWindow = 729
 > yWindow = 729
 
-> drawSierpinski depth
+> drawFractal f depth
 >   = runGraphics (
 >     do w <- openWindow "Drawing Shapes" (xWindow,yWindow)
->	 createCarpet w depth (0, 0) (xWindow, yWindow)
+>	 f w depth (0, 0) (xWindow, yWindow)
 >        spaceClose w
 >     )
 
-> sierpinski_depth = 3
+> fractal_depth =  5
 > sierpinskiCarpet :: IO ()
-> sierpinskiCarpet = drawSierpinski sierpinski_depth
+> sierpinskiCarpet = drawFractal createCarpet fractal_depth
 
 Note that you either need to run your program in `SOE/src` or add this
 path to GHC's search path via `-i/path/to/SOE/src/`.
@@ -190,7 +190,38 @@ Also, the organization of SOE has changed a bit, so that now you use
    pattern of recursive self-similarity.
 
 > myFractal :: IO ()
-> myFractal = error "Define me!"
+> myFractal = drawFractal createFive fractal_depth
+
+(withColor Blue (drawRegion (createRectangle (x,y) (x',y'))))
+(withColor Black (drawRegion (createRectangle (a, b) (a', b'))))
+
+> fiveWithBorder :: Point -> Point -> Int -> Graphic
+> fiveWithBorder (x,y) (x',y') d = let a = x + 1 in let b = y + 1 in let a' = x' - 1 in let b' = y' - 1 in 
+>				   overGraphics (reverse  ([(withColor Yellow (drawRegion (createRectangle (x,y) (x',y')))),
+>							    (withColor Blue (drawRegion (createRectangle (a, b) (a', b')))),
+>						  	    (withColor Yellow (drawRegion (createRectangle (a, b) (a + (a' - a) `div` 3, b + (b' - b) `div` 3)))),
+>						  	    (withColor Black (drawRegion (createRectangle (a + (a' - a) `div` 3, b + (b' - b) `div` 3) (a + 2*(a' - a) `div` 3, b + 2*(b' - b) `div` 3)))),
+>						   	    (withColor Yellow (drawRegion (createRectangle  (a + 2*(a' - a) `div` 3, b + 2*(b' - b) `div` 3) (a',b')))),	
+>						  	    (withColor Yellow (drawRegion (createRectangle  (a, b + 2* (b' - b) `div` 3) (a + (a' - a) `div` 3, b')))),
+>						 	    (withColor Yellow (drawRegion (createRectangle  (a + 2*(a' - a) `div` 3, b) (a', b + (b' - b) `div` 3)))),
+>							    (withColor Cyan (drawRegion (createEllipse  (a + (a' - a) `div` 3, b) (a + 2*(a' - a) `div` 3, b + (b' - b) `div` 3)))),
+>							    (withColor Cyan (drawRegion (createEllipse  (a, b + (b'-b)`div`3) (a + (a' - a) `div` 3, b + 2*(b' - b) `div` 3)))),
+>							    (withColor Cyan (drawRegion (createEllipse  (a + (a' - a) `div` 3, b + 2*(b' - b) `div` 3)  (a + 2*(a' - a) `div` 3, b')))),
+>							    (withColor Cyan (drawRegion (createEllipse  (a + 2* (a' - a) `div` 3, b + (b' - b) `div` 3)  (a', b + 2*(b'-b) `div` 3))))]))
+
+> createFive :: Window -> Int -> Point -> Point -> IO()
+> createFive w 0 (a,b) (a',b') = drawInWindow w (fiveWithBorder (a,b) (a',b') (1))
+> createFive w d (a,b) (a',b') = do     drawInWindow w (fiveWithBorder (a,b) (a',b') (d+1))
+>                                       createFive w (d-1) (a, b) (a + (a' - a) `div` 3, b + (b' - b) `div` 3)
+>					createFive w (d-1) (a + (a' - a) `div` 3, b + (b' - b) `div` 3) (a + 2*(a' - a) `div` 3, b + 2*(b' - b) `div` 3)
+>					createFive w (d-1) (a + 2*(a' - a) `div` 3, b + 2*(b' - b) `div` 3) (a',b')
+>					createFive w (d-1) (a, b + 2* (b' - b) `div` 3) (a + (a' - a) `div` 3, b')
+>					createFive w (d-1) (a + 2*(a' - a) `div` 3, b) (a', b + (b' - b) `div` 3)
+>
+
+
+
+
 
 Part 3: Recursion Etc.
 ----------------------
