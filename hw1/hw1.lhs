@@ -220,9 +220,6 @@ Also, the organization of SOE has changed a bit, so that now you use
 >
 
 
-
-
-
 Part 3: Recursion Etc.
 ----------------------
 
@@ -234,60 +231,66 @@ they are passed contain at least one element.)
 Write a *non-recursive* function to compute the length of a list
 
 > lengthNonRecursive :: [a] -> Int
-> lengthNonRecursive = error "Define me!"
+> lengthNonRecursive a = length a
 
 `doubleEach [1,20,300,4000]` should return `[2,40,600,8000]`
 
 > doubleEach :: [Int] -> [Int]
-> doubleEach = error "Define me!"
+> doubleEach [] = []
+> doubleEach (x:xs) = x*2 : doubleEach xs
 
 Now write a *non-recursive* version of the above.
 
 > doubleEachNonRecursive :: [Int] -> [Int]
-> doubleEachNonRecursive = error "Define me!"
+> doubleEachNonRecursive xs = map (\a -> a * 2) xs
 
 `pairAndOne [1,20,300]` should return `[(1,2), (20,21), (300,301)]`
 
 > pairAndOne :: [Int] -> [(Int, Int)]
-> pairAndOne = error "Define me!"
-
+> pairAndOne [] = []
+> pairAndOne (x:xs) = (x, x+1) : pairAndOne xs
 
 Now write a *non-recursive* version of the above.
 
 > pairAndOneNonRecursive :: [Int] -> [(Int, Int)]
-> pairAndOneNonRecursive = error "Define me!"
+> pairAndOneNonRecursive xs = map (\a -> (a, a+1)) xs
 
 `addEachPair [(1,2), (20,21), (300,301)]` should return `[3,41,601]`
 
 > addEachPair :: [(Int, Int)] -> [Int]
-> addEachPair = error "Define me!" 
+> addEachPair [] = []
+> addEachPair ((x,y):xs) = (x+y) : addEachPair xs
 
 Now write a *non-recursive* version of the above.
 
 > addEachPairNonRecursive :: [(Int, Int)] -> [Int]
-> addEachPairNonRecursive = error "Define me!" 
+> addEachPairNonRecursive xs =  map (\(a,b) -> a+b) xs
 
 `minList` should return the *smallest* value in the list. You may assume the
 input list is *non-empty*.
 
 > minList :: [Int] -> Int
-> minList = error "Define me!"
+> minList (x:[]) = x
+> minList (x:xs) = let min = minList xs in
+>		   if x < min then x else min
 
 Now write a *non-recursive* version of the above.
 
 > minListNonRecursive :: [Int] -> Int
-> minListNonRecursive = error "Define me!"
+> minListNonRecursive xs = minimum xs
 
 `maxList` should return the *largest* value in the list. You may assume the
 input list is *non-empty*.
 
 > maxList :: [Int] -> Int
-> maxList = error "Define me!"
+> maxList (x:[]) = x
+> maxList (x:xs) = let max = maxList xs in
+>		   if x > max then x else max
 
 Now write a *non-recursive* version of the above.
 
 > maxListNonRecursive :: [Int] -> Int
-> maxListNonRecursive = error "Define me!"
+> maxListNonRecursive xs = maximum xs
 
 Now, a few functions for this `Tree` type.
 
@@ -298,19 +301,22 @@ Now, a few functions for this `Tree` type.
 So: `fringe (Branch (Leaf 1) (Leaf 2))` should return `[1,2]`
 
 > fringe :: Tree a -> [a]
-> fringe = error "Define me!"
+> fringe (Leaf a) = [a]
+> fringe (Branch l r) = (fringe l) ++ (fringe r)
 
 `treeSize` should return the number of leaves in the tree. 
 So: `treeSize (Branch (Leaf 1) (Leaf 2))` should return `2`.
 
 > treeSize :: Tree a -> Int
-> treeSize = error "Define me!"
+> treeSize (Leaf a) = 1
+> treeSize (Branch l r) = (treeSize l) + (treeSize r)
 
 `treeSize` should return the height of the tree.
 So: `height (Branch (Leaf 1) (Leaf 2))` should return `1`.
 
 > treeHeight :: Tree a -> Int
-> treeHeight = error "Define me!"
+> treeHeight (Leaf a) = 0
+> treeHeight (Branch l r) = 1 + maximum [(treeHeight l), (treeHeight r)]
 
 Now, a tree where the values live at the nodes not the leaf.
 
@@ -322,19 +328,23 @@ So `takeTree 1 (IBranch 1 (IBranch 2 ILeaf ILeaf) (IBranch 3 ILeaf ILeaf)))`
 should return `IBranch 1 ILeaf ILeaf`.
 
 > takeTree :: Int -> InternalTree a -> InternalTree a
-> takeTree = error "Define me!"
+> takeTree 0 (IBranch a l r) = ILeaf
+> takeTree 1 (IBranch a l r) = IBranch a ILeaf ILeaf
+> takeTree n (IBranch a l r) = IBranch a (takeTree (n-1) l) (takeTree (n-1) r)
 
 `takeTreeWhile p t` should cut of the tree at the nodes that don't satisfy `p`.
 So: `takeTreeWhile (< 3) (IBranch 1 (IBranch 2 ILeaf ILeaf) (IBranch 3 ILeaf ILeaf)))`
 should return `(IBranch 1 (IBranch 2 ILeaf ILeaf) ILeaf)`.
 
 > takeTreeWhile :: (a -> Bool) -> InternalTree a -> InternalTree a
-> takeTreeWhile = error "Define me!"
+> takeTreeWhile test ILeaf = ILeaf
+> takeTreeWhile test (IBranch a l r) = if (test a) then IBranch a (takeTreeWhile test l) (takeTreeWhile test r) else ILeaf
  
 Write the function map in terms of foldr:
 
 > myMap :: (a -> b) -> [a] -> [b]
-> myMap = error "Define me!"
+> myMap f [] = []
+> myMap f (x:xs) = foldr (\a as -> (f a):as) [] xs
 
 Part 4: Transforming XML Documents
 ----------------------------------
