@@ -151,16 +151,59 @@ Part 2: Drawing Fractals
 Write a function `sierpinskiCarpet` that displays this figure on the
 screen:
 
-> main0
+> rectWithBorder :: Point -> Point -> Graphic
+> rectWithBorder (x,y) (x',y') = overGraphic  (withColor Black (drawRegion (createRectangle (x'`div`3,y'`div`3) (2*x'`div`3,2*y'`div`3)))) (overGraphic (withColor Blue (drawRegion (createRectangle (x+10,y+10) (x',y')))) (withColor Black (drawRegion (createRectangle (x,y) (x',y')))))
+
+> createCarpet :: Window -> Int -> Point -> Point -> IO()
+> createCarpet w 0 (x,y) (x',y') = drawInWindow w (rectWithBorder (x,y) (x',y'))
+> createCarpet w depth (x,y) (x',y') = do drawInWindow w (rectWithBorder (x,y) (x',y'))
+>					  createCarpet w (depth-1) (x,y) (x'`div`3, y'`div`3)
+>					  createCarpet w (depth-1) (x,y'`div`3) (x'`div`3, 2*y'`div`3)
+>					  createCarpet w (depth-1) (x,2*y'`div`3) (x'`div`3, y')
+>					  createCarpet w (depth-1) (x'`div`3,y) (2*x'`div`3, y'`div`3)
+>					  createCarpet w (depth-1) (x'`div`3,2*y'`div`3) (2*x'`div`3, y')
+>					  createCarpet w (depth-1) (2*x'`div`3,y) (x', y'`div`3)
+>					  createCarpet w (depth-1) (2*x'`div`3,y'`div`3) (x', 2*y'`div`3)
+>					  createCarpet w (depth-1) (2*x'`div`3,2*y'`div`3) (x', y')
+
+-> createCarpet w depth (0, 0) (xWindow, yWindow)
+
+-> createCarpet w 0 ((x,y) (x',y') = drawInWindow w (rectWithBorder (x,y) (x',y'))
+
+-> squareWithBorder :: Point -> Int -> Graphic
+-> squareWithBorder (x,y) s = overGraphic (withColor Black (drawRegion (createRectangle (x+s,y+s) (x+2*s,y+2*s))))  (withColor Blue (drawRegion (createRectangle (x,y) (x+3*s,y+3*s))))
+
+-> createCarpet w 0 (x,y) s = drawInWindow w (squareWithBorder (x,y) s)
+-> createCarpet w d (x,y) s = do drawInWindow w (squareWithBorder (x,y) s)
+->				drawInWindow w (squareWithBorder (x,y+s) s)
+->				drawInWindow w (squareWithBorder (x,y+2*s) s)
+->				drawInWindow w (squareWithBorder (x+s,y) s)
+->				drawInWindow w (squareWithBorder (x+s,y+2*s) s)
+->				drawInWindow w (squareWithBorder (x+2*s,y) s)
+->				drawInWindow w (squareWithBorder (x+2*s,y+s) s)
+->				drawInWindow w (squareWithBorder (x+2*s,y+2*s) s)
+
+->				createCarpet w (d-1) (x,y+3*s) (s*3)
+->				createCarpet w (d-1) (x,y+3*s*2) (s*3)
+->				createCarpet w (d-1) (x+3*s,y) (s*3)
+->				createCarpet w (d-1) (x+3*s,y+3*s*2) (s*3)
+->				createCarpet w (d-1) (x+3*s*2,y) (s*3)
+->				createCarpet w (d-1) (x+3*s*2,y+3*s) (s*3)
+->				createCarpet w (d-1) (x+3*s*2,y+3*s*2) (s*3)
+
+> xWindow = 900
+> yWindow = 900
+
+> drawSierpinski depth
 >   = runGraphics (
->     do w <- openWindow "Drawing Shapes" (xWin,yWin)
->        drawInWindow w (withColor Red  (shapeToGraphic (Rectangle 10 20)))
+>     do w <- openWindow "Drawing Shapes" (xWindow,yWindow)
+>	 createCarpet w depth (0, 0) (xWindow, yWindow)
 >        spaceClose w
 >     )
 
-
+> sierpinski_depth = 3
 > sierpinskiCarpet :: IO ()
-> sierpinskiCarpet = error "Define me!"
+> sierpinskiCarpet = drawSierpinski sierpinski_depth
 
 Note that you either need to run your program in `SOE/src` or add this
 path to GHC's search path via `-i/path/to/SOE/src/`.
