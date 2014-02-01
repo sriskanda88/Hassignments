@@ -436,7 +436,23 @@ yields the HTML speciﬁed above (but with no whitespace except what's
 in the textual data in the original XML).
 
 > formatPlay :: SimpleXML -> SimpleXML
-> formatPlay xml = PCDATA "WRITE ME!"
+
+-> formatPlay x = x
+
+> formatPlay x = formatPlayRec 0 x
+
+> formatPlayRec :: Int -> SimpleXML -> SimpleXML
+> formatPlayRec d (PCDATA x) = PCDATA x
+> formatPlayRec d (Element w (z:zs)) =
+>	formatter d (Element w ([(formatPlayRec d z)] ++ (map (formatPlayRec (d + 1)) zs)))
+
+> formatter :: Int -> SimpleXML -> SimpleXML
+> formatter d (Element _ y)
+>	| d == 0 = Element "body" y
+>	| d == 1 = Element "h1" y
+>	| d == 2 = Element "h2" y
+>	| d == 3 = Element "h3" y
+>	| d == 4 = Element "b" y 
 
 The main action that we've provided below will use your function to
 generate a ﬁle `dream.html` from the sample play. The contents of this
