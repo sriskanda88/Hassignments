@@ -101,11 +101,36 @@ The following are the definitions of shapes:
 3. Define a function
 
 > bigger :: Shape -> Float -> Shape
-> bigger = error "Define me"
+> bigger (Rectangle x y) f = Rectangle (f*x) y
+> bigger (Ellipse r r') f = Ellipse (f*r) r'
+> bigger (RtTriangle s s') f = RtTriangle (f*s) s'
+> bigger (Polygon vs) f = Polygon (map (\(x,y) -> ((f*x), y)) vs)
 
   that takes a shape `s` and expansion factor `e` and returns
   a shape which is the same as (i.e., similar to in the geometric sense)
   `s` but whose area is `e` times the area of `s`.
+
+> distBetween :: Vertex -> Vertex -> Float
+> distBetween (x1,y1) (x2,y2) 
+>   = sqrt ((x1-x2)^2 + (y1-y2)^2)
+
+
+> triArea         :: Vertex -> Vertex -> Vertex -> Float
+> triArea v1 v2 v3 = let a = distBetween v1 v2
+>                        b = distBetween v2 v3
+>                        c = distBetween v3 v1
+>                        s = 0.5*(a+b+c)
+>                    in sqrt (s*(s-a)*(s-b)*(s-c))
+
+> area                   :: Shape -> Float
+> area (Rectangle  s1 s2) = s1*s2
+> area (RtTriangle s1 s2) = s1*s2/2
+> area (Ellipse r1 r2)    = pi*r1*r2
+> area (Polygon (v1:vs))  = polyArea vs
+>      where polyArea               :: [Vertex] -> Float
+>            polyArea (v2:v3:vs') = triArea v1 v2 v3
+>                                      + polyArea (v3:vs')
+>            polyArea _           = 0
 
 4. The Towers of Hanoi is a puzzle where you are given three pegs,
    on one of which are stacked $n$ discs in increasing order of size.
@@ -436,41 +461,25 @@ yields the HTML speciﬁed above (but with no whitespace except what's
 in the textual data in the original XML).
 
 > formatPlay :: SimpleXML -> SimpleXML
-> formatPlay x = (Element "html" (newPrune (addBreaks (transXML 0 dict x))))
+> formatPlay x = (Element "html" (newPrune (transXML 0 dict (addElementAfter "PERSONAE" (Element "TITLE" [(PCDATA "Dramatis Personae")]) x))))
  
-> addBreaks :: SimpleXML -> SimpleXML
-> pruneXML :: SimpleXML -> SimpleXML
 > transXML :: Int -> (ElementName -> Int -> ElementName) -> SimpleXML -> SimpleXML
 > newPrune :: SimpleXML -> [SimpleXML]
-> addElementAfter :: SimpleXML -> ElementName -> SimpleXML -> SimpleXML
+> addElementAfter :: ElementName -> SimpleXML -> SimpleXML -> SimpleXML
+
+> addElementAfter pattern newbie (Element name ns)
+>	| name == pattern = (Element name (newbie:(map (addElementAfter pattern newbie) ns)))
+> 	| otherwise = (Element name (map (addElementAfter pattern newbie) ns))
+
+> addElementAfter pattern newbie (PCDATA s) = (PCDATA s)
 
 > newPrune (Element name ns) 
 >	| name == "del" = foldl (++) [] (map newPrune ns)
+>	| name == "delbr" = (foldl (++) [] (map newPrune ns)) ++ [(Element "br" [])]
+>	| name == "b" = [(Element name (foldl (++) [] (map newPrune ns)))] ++ [(Element "br" [])]
 >	| otherwise = [(Element name (foldl (++) [] (map newPrune ns)))]
 
 > newPrune (PCDATA s) = [(PCDATA s)]
-
--> pruneXML (Element parent (before:(Element child cs):afters))
-->	| child == "del" = (Element parent ([(pruneXML before)] ++ (map pruneXML cs) ++ (map pruneXML afters)))
-->	| otherwise = (Element parent ([(pruneXML before)] ++ [(Element child cs)] ++ (map pruneXML afters)))
--
--> pruneXML (Element parent ((Element child cs):[])) 
-->	| child == "del" = (Element parent (map pruneXML cs))
-->	| otherwise = (Element parent [(Element child (map pruneXML cs))])
--
--> pruneXML (Element parent []) = (Element parent [])
--
--> pruneXML (Element parent [(PCDATA s)])
-->	| parent == "del" = (PCDATA s)
-->	| otherwise = (Element parent [(PCDATA s)])
--
--> pruneXML (PCDATA s) = (PCDATA s)
--
-> addBreaks (Element name [(PCDATA s)])
->	| name == "del" || name == "b" = (Element name ([(PCDATA s)] ++ [(Element "br" [])]))
->	| otherwise = (Element name [(PCDATA s)])
-
-> addBreaks (Element name ns) = (Element name (map addBreaks ns))
 
 > transXML d dict (Element name ns) = (Element (dict name d) (map (transXML (d+1) dict) ns))
 > transXML d dict (PCDATA s) = (PCDATA s)
@@ -482,12 +491,12 @@ in the textual data in the original XML).
 >	| n == "TITLE" && d == 2 = "h2"
 >	| n == "TITLE" && d == 3 = "h3"
 >	| n == "PERSONAE" = "del"
->	| n == "PERSONA" = "del"
+>	| n == "PERSONA" = "delbr"
 >	| n == "ACT" = "del"
 >	| n == "SCENE" = "del"
 >	| n == "SPEECH" = "del"
 >	| n == "SPEAKER" = "b"
->	| n == "LINE" = "del"
+>	| n == "LINE" = "delbr"
 >	| otherwise = "del"
 
 The main action that we've provided below will use your function to
