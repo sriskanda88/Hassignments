@@ -436,23 +436,59 @@ yields the HTML speciﬁed above (but with no whitespace except what's
 in the textual data in the original XML).
 
 > formatPlay :: SimpleXML -> SimpleXML
+> formatPlay x = (Element "html" (newPrune (addBreaks (transXML 0 dict x))))
+ 
+> addBreaks :: SimpleXML -> SimpleXML
+> pruneXML :: SimpleXML -> SimpleXML
+> transXML :: Int -> (ElementName -> Int -> ElementName) -> SimpleXML -> SimpleXML
+> newPrune :: SimpleXML -> [SimpleXML]
+> addElementAfter :: SimpleXML -> ElementName -> SimpleXML -> SimpleXML
 
--> formatPlay x = x
+> newPrune (Element name ns) 
+>	| name == "del" = foldl (++) [] (map newPrune ns)
+>	| otherwise = [(Element name (foldl (++) [] (map newPrune ns)))]
 
-> formatPlay x = formatPlayRec 0 x
+> newPrune (PCDATA s) = [(PCDATA s)]
 
-> formatPlayRec :: Int -> SimpleXML -> SimpleXML
-> formatPlayRec d (PCDATA x) = PCDATA x
-> formatPlayRec d (Element w (z:zs)) =
->	formatter d (Element w ([(formatPlayRec d z)] ++ (map (formatPlayRec (d + 1)) zs)))
+-> pruneXML (Element parent (before:(Element child cs):afters))
+->	| child == "del" = (Element parent ([(pruneXML before)] ++ (map pruneXML cs) ++ (map pruneXML afters)))
+->	| otherwise = (Element parent ([(pruneXML before)] ++ [(Element child cs)] ++ (map pruneXML afters)))
+-
+-> pruneXML (Element parent ((Element child cs):[])) 
+->	| child == "del" = (Element parent (map pruneXML cs))
+->	| otherwise = (Element parent [(Element child (map pruneXML cs))])
+-
+-> pruneXML (Element parent []) = (Element parent [])
+-
+-> pruneXML (Element parent [(PCDATA s)])
+->	| parent == "del" = (PCDATA s)
+->	| otherwise = (Element parent [(PCDATA s)])
+-
+-> pruneXML (PCDATA s) = (PCDATA s)
+-
+> addBreaks (Element name [(PCDATA s)])
+>	| name == "del" || name == "b" = (Element name ([(PCDATA s)] ++ [(Element "br" [])]))
+>	| otherwise = (Element name [(PCDATA s)])
 
-> formatter :: Int -> SimpleXML -> SimpleXML
-> formatter d (Element _ y)
->	| d == 0 = Element "body" y
->	| d == 1 = Element "h1" y
->	| d == 2 = Element "h2" y
->	| d == 3 = Element "h3" y
->	| d == 4 = Element "b" y 
+> addBreaks (Element name ns) = (Element name (map addBreaks ns))
+
+> transXML d dict (Element name ns) = (Element (dict name d) (map (transXML (d+1) dict) ns))
+> transXML d dict (PCDATA s) = (PCDATA s)
+
+> dict :: ElementName -> Int -> ElementName
+> dict n d
+>	| n == "PLAY" = "body"
+>	| n == "TITLE" && d == 1 = "h1"
+>	| n == "TITLE" && d == 2 = "h2"
+>	| n == "TITLE" && d == 3 = "h3"
+>	| n == "PERSONAE" = "del"
+>	| n == "PERSONA" = "del"
+>	| n == "ACT" = "del"
+>	| n == "SCENE" = "del"
+>	| n == "SPEECH" = "del"
+>	| n == "SPEAKER" = "b"
+>	| n == "LINE" = "del"
+>	| otherwise = "del"
 
 The main action that we've provided below will use your function to
 generate a ﬁle `dream.html` from the sample play. The contents of this
