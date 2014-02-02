@@ -110,6 +110,8 @@ The following are the definitions of shapes:
   a shape which is the same as (i.e., similar to in the geometric sense)
   `s` but whose area is `e` times the area of `s`.
 
+Methods from Shape.hs to calculate area of polygon from area of triangle
+
 > distBetween :: Vertex -> Vertex -> Float
 > distBetween (x1,y1) (x2,y2) 
 >   = sqrt ((x1-x2)^2 + (y1-y2)^2)
@@ -176,8 +178,12 @@ Part 2: Drawing Fractals
 Write a function `sierpinskiCarpet` that displays this figure on the
 screen:
 
+rectWithBorder : Draw the basic unit of a sierpinski carpet - in this case a Blue square with a Black border and a black square set inside in the center.
+
 > rectWithBorder :: Point -> Point -> Int -> Graphic
 > rectWithBorder (x,y) (x',y') d = overGraphic  (withColor Black (drawRegion (createRectangle (x+((x'-x)`div`3),y+((y'-y)`div`3)) (x+(2*(x'-x)`div`3),y+(2*(y'-y)`div`3))))) (overGraphic (withColor Blue (drawRegion (createRectangle (x+1,y+1) (x'-1,y'-1)))) (withColor Black (drawRegion (createRectangle (x,y) (x',y')))))
+
+createCarpet : Create an IO that draws the carpet and then by repeatendly calling itself recursively over 8 out of 9 smaller blocks within the block.
 
 > createCarpet :: Window -> Int -> Point -> Point -> IO()
 > createCarpet w 0 (x,y) (x',y') = drawInWindow w (rectWithBorder (x,y) (x',y') (1))
@@ -194,6 +200,8 @@ screen:
 > xWindow = 729
 > yWindow = 729
 
+drawFractal : generic function to draw fractals given a drawing function and a depth to which it must be recursed.
+
 > drawFractal f depth
 >   = runGraphics (
 >     do w <- openWindow "Drawing Shapes" (xWindow,yWindow)
@@ -201,7 +209,7 @@ screen:
 >        spaceClose w
 >     )
 
-> fractal_depth =  5
+> fractal_depth =  4
 > sierpinskiCarpet :: IO ()
 > sierpinskiCarpet = drawFractal createCarpet fractal_depth
 
@@ -217,8 +225,7 @@ Also, the organization of SOE has changed a bit, so that now you use
 > myFractal :: IO ()
 > myFractal = drawFractal createFive fractal_depth
 
-(withColor Blue (drawRegion (createRectangle (x,y) (x',y'))))
-(withColor Black (drawRegion (createRectangle (a, b) (a', b'))))
+fiveWithBorder : Create a basic block of the fractal - in this case a square that is divided into 9 smaller squares with 5 of them colored differenly.
 
 > fiveWithBorder :: Point -> Point -> Int -> Graphic
 > fiveWithBorder (x,y) (x',y') d = let a = x + 1 in let b = y + 1 in let a' = x' - 1 in let b' = y' - 1 in 
@@ -233,6 +240,8 @@ Also, the organization of SOE has changed a bit, so that now you use
 >							    (withColor Cyan (drawRegion (createEllipse  (a, b + (b'-b)`div`3) (a + (a' - a) `div` 3, b + 2*(b' - b) `div` 3)))),
 >							    (withColor Cyan (drawRegion (createEllipse  (a + (a' - a) `div` 3, b + 2*(b' - b) `div` 3)  (a + 2*(a' - a) `div` 3, b')))),
 >							    (withColor Cyan (drawRegion (createEllipse  (a + 2* (a' - a) `div` 3, b + (b' - b) `div` 3)  (a', b + 2*(b'-b) `div` 3))))]))
+
+createFive : Create a drawing of the fractal by drawing one basic block using fiveWithBorder and repeatedly calling itself over each of the 5 smaller differently-colored blocks out of the 9.
 
 > createFive :: Window -> Int -> Point -> Point -> IO()
 > createFive w 0 (a,b) (a',b') = drawInWindow w (fiveWithBorder (a,b) (a',b') (1))
@@ -369,7 +378,7 @@ Write the function map in terms of foldr:
 
 > myMap :: (a -> b) -> [a] -> [b]
 > myMap f [] = []
-> myMap f (x:xs) = foldr (\a as -> (f a):as) [] xs
+> myMap f xs = foldr (\a as -> (f a) : as) [] xs
 
 Part 4: Transforming XML Documents
 ----------------------------------
@@ -460,11 +469,31 @@ representing a play to another XML structure that, when printed,
 yields the HTML speciﬁed above (but with no whitespace except what's
 in the textual data in the original XML).
 
+------------------------------------------------------------------------------
+------------- Description of solution ----------------------------------------
+------------------------------------------------------------------------------
+The given SimpleXML is tranlated from an XML to HTML by:
+1. Add any additional nodes/data to the XML structure as required.
+2. Translate the altered XML to HTML tags.
+	a. Provide a function f that takes XML tag as input and returns an HTML tag equivalent
+	NOTE: The function f needs to provide special tags for additonal translation such as 
+	the "del" tag to mark nodes to be deleted and the "delbr" tag to mark nodes to be deleted
+	AND appended with a line break.
+	b. Use the provided function f to translate all nodes of the XML recursively
+3. Prune the translated XML
+	a. Rremove any nodes marked for deletion.
+	b. Add line breaks where necessary.
+4. Wrap the HTML structure created so far within <html> tags.
+5. Return brand new translated fully functional HTML structure!
+-------------------------------------------------------------------------------
+
 > formatPlay :: SimpleXML -> SimpleXML
 > formatPlay x = (Element "html" (newPrune (transXML 0 dict (addElementAfter "PERSONAE" (Element "TITLE" [(PCDATA "Dramatis Personae")]) x))))
  
-> transXML :: Int -> (ElementName -> Int -> ElementName) -> SimpleXML -> SimpleXML
-> newPrune :: SimpleXML -> [SimpleXML]
+-------------------------------------------------------------------------------
+addElementAfter : Add a given SimpleXML element as the first child of a particular node in a provided SimpleXML tree.
+-------------------------------------------------------------------------------
+
 > addElementAfter :: ElementName -> SimpleXML -> SimpleXML -> SimpleXML
 
 > addElementAfter pattern newbie (Element name ns)
@@ -473,16 +502,32 @@ in the textual data in the original XML).
 
 > addElementAfter pattern newbie (PCDATA s) = (PCDATA s)
 
-> newPrune (Element name ns) 
->	| name == "del" = foldl (++) [] (map newPrune ns)
->	| name == "delbr" = (foldl (++) [] (map newPrune ns)) ++ [(Element "br" [])]
->	| name == "b" = [(Element name (foldl (++) [] (map newPrune ns)))] ++ [(Element "br" [])]
->	| otherwise = [(Element name (foldl (++) [] (map newPrune ns)))]
+-------------------------------------------------------------------------------
+transXML : Translate a given SimpleXML tree by looking up each node using a provided lookup function
+-------------------------------------------------------------------------------
 
-> newPrune (PCDATA s) = [(PCDATA s)]
+> transXML :: Int -> (ElementName -> Int -> ElementName) -> SimpleXML -> SimpleXML
 
 > transXML d dict (Element name ns) = (Element (dict name d) (map (transXML (d+1) dict) ns))
 > transXML d dict (PCDATA s) = (PCDATA s)
+
+-------------------------------------------------------------------------------
+newPrune : Prune a SimpleXML tree to remove nodes marked with special tags "del", "delbr" and "b".
+-------------------------------------------------------------------------------
+
+> newPrune :: SimpleXML -> [SimpleXML]
+> newPrune (Element name ns)
+>       | name == "del" = foldl (++) [] (map newPrune ns)
+>       | name == "delbr" = (foldl (++) [] (map newPrune ns)) ++ [(Element "br" [])]
+>       | name == "b" = [(Element name (foldl (++) [] (map newPrune ns)))] ++ [(Element "br" [])]
+>       | otherwise = [(Element name (foldl (++) [] (map newPrune ns)))]
+
+> newPrune (PCDATA s) = [(PCDATA s)]
+
+
+-------------------------------------------------------------------------------
+dict : Dictionary function to lookup XML tags for the play and return matching HTML tags
+-------------------------------------------------------------------------------
 
 > dict :: ElementName -> Int -> ElementName
 > dict n d
