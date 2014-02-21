@@ -335,24 +335,18 @@ variable is one-or-more uppercase letters.
 Use the above to write a parser for `Expression` values
 
 > exprP :: Parser Expression
-> exprP = do a <- varP
->	     case Var(a) of
->	       Var(a) 	-> return (Var(a))
->	       _	-> do b <- valueP
->			      case Val(b) of
->				Val(b) 	-> return (Val(b))
->				_	-> opExpr
->					     where
->					       opExpr = do x <- opP
->						  	   y <- exprP
->						  	   z <- exprP
->						  	   return (Op x y z)
+> exprP = opExprP <|> varExprP <|> valExprP
 
- exprP = do x <- (varP <|> valueP <|> (opP exprP exprP))
-	     case x of
-       		Var(x) -> return (Var(x))
- 		Val(x) -> return (Val(x))
-		Op(x)  -> return (Op(x)) 
+> varExprP = do a <- varP
+>		return (Var(a))
+
+> valExprP = do a <- valueP
+>		return (Val(a))
+
+> opExprP  = do e1 <- exprP
+>		op <- opP
+>		e2 <- exprP
+>		return (Op op e1 e2)
 
 Parsing Statements
 ------------------
@@ -360,7 +354,45 @@ Parsing Statements
 Next, use the expression parsers to build a statement parser
 
 > statementP :: Parser Statement
-> statementP = error "TBD" 
+> statementP = assignmentP <|> ifelseP <|> whileP <|> sequenceP <|> skipP 
+>
+> encloseP c p = do char c 
+>                   x <- p
+>                   char c
+>                   return x
+>
+> parenP = encloseP '('
+> braceP = encloseP '{'
+>
+> assignmentP :: Parser Statement		   
+> assignmentP = do v <- varP
+>		   string ":="
+>		   e <- exprP
+>		   return (Assign v e)
+>
+> ifelseP :: Parser Statement
+> ifelseP =  do string "if"
+>		exp <- parenP exprP
+>		s1 <- braceP statementP
+>		string "else"
+>		s2 <- braceP statementP
+>		return (If exp s1 s2) 
+>
+> whileP :: Parser Statement
+> whileP = do string "while"
+>	      exp <- parenP exprP
+>	      s <- braceP statementP
+>	      return (While exp s)
+>
+> sequenceP :: Parser Statement
+> sequenceP = do s1 <- statementP
+>		 char ';'
+>		 s2 <- statementP
+>		 return (Sequence s1 s2)
+>
+> skipP :: Parser Statement
+> skipP =  do string "no-op"
+>	      return (error "skip")
  
 When you are done, we can put the parser and evaluator together 
 in the end-to-end interpreter function
