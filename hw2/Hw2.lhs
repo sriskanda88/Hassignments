@@ -289,6 +289,11 @@ for the WHILE language from the previous problem.
 Parsing Constants
 -----------------
 
+Define a parser to match failed cases
+
+> failP :: Parser Value
+> failP = return(IntVal(0)) 
+
 First, we will write parsers for the `Value` type
 
 > valueP :: Parser Value
@@ -297,24 +302,25 @@ First, we will write parsers for the `Value` type
 To do so, fill in the implementations of
 
 > intP :: Parser Value
-> intP = error "TBD" 
+> intP = do ds <- many1 digit
+>	    return (IntVal(read ds :: Int))
 
 Next, define a parser that will accept a 
 particular string `s` as a given value `x`
 
 > constP :: String -> a -> Parser a
-> constP s x = error "TBD"
+> constP s x = string s >> return x
 
 and use the above to define a parser for boolean values 
 where `"true"` and `"false"` should be parsed appropriately.
 
 > boolP :: Parser Value
-> boolP = error "TBD"
+> boolP = constP "true" (BoolVal(True)) <|> constP "false" (BoolVal(False))
 
 Continue to use the above to parse the binary operators
 
 > opP :: Parser Bop 
-> opP = error "TBD"
+> opP = (constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> (constP ">=" Ge) <|> (constP ">" Gt) <|> (constP "<=" Le) <|> (constP "<" Lt)
  
 
 Parsing Expressions 
@@ -329,7 +335,24 @@ variable is one-or-more uppercase letters.
 Use the above to write a parser for `Expression` values
 
 > exprP :: Parser Expression
-> exprP = error "TBD"
+> exprP = do a <- varP
+>	     case Var(a) of
+>	       Var(a) 	-> return (Var(a))
+>	       _	-> do b <- valueP
+>			      case Val(b) of
+>				Val(b) 	-> return (Val(b))
+>				_	-> opExpr
+>					     where
+>					       opExpr = do x <- opP
+>						  	   y <- exprP
+>						  	   z <- exprP
+>						  	   return (Op x y z)
+
+ exprP = do x <- (varP <|> valueP <|> (opP exprP exprP))
+	     case x of
+       		Var(x) -> return (Var(x))
+ 		Val(x) -> return (Val(x))
+		Op(x)  -> return (Op(x)) 
 
 Parsing Statements
 ------------------
@@ -338,7 +361,7 @@ Next, use the expression parsers to build a statement parser
 
 > statementP :: Parser Statement
 > statementP = error "TBD" 
-
+ 
 When you are done, we can put the parser and evaluator together 
 in the end-to-end interpreter function
 
