@@ -297,7 +297,7 @@ Define a parser to match failed cases
 First, we will write parsers for the `Value` type
 
 > valueP :: Parser Value
-> valueP = intP <|> boolP
+> valueP = spaces >> (intP <|> boolP)
 
 To do so, fill in the implementations of
 
@@ -309,7 +309,7 @@ Next, define a parser that will accept a
 particular string `s` as a given value `x`
 
 > constP :: String -> a -> Parser a
-> constP s x = string s >> return x
+> constP s x = spaces >> string s >> return x
 
 and use the above to define a parser for boolean values 
 where `"true"` and `"false"` should be parsed appropriately.
@@ -335,18 +335,27 @@ variable is one-or-more uppercase letters.
 Use the above to write a parser for `Expression` values
 
 > exprP :: Parser Expression
-> exprP = opExprP <|> varExprP <|> valExprP
+> exprP = evalP 
 
 > varExprP = do a <- varP
 >		return (Var(a))
 
 > valExprP = do a <- valueP
 >		return (Val(a))
-
-> opExprP  = do e1 <- exprP
->		op <- opP
->		e2 <- exprP
->		return (Op op e1 e2)
+>
+> mychainl :: Parser Expression -> Parser Bop -> Parser Expression
+> p `mychainl` pop = p >>= rest
+>    where 
+>      rest x = grab x <|> return x 
+>      grab x = do o <- pop
+>                  y <- p
+>                  rest $ (Op o x y)
+>
+> evalP :: Parser Expression
+> evalP = factorP `mychainl` opP
+>
+> factorP :: Parser Expression
+> factorP = (parenP evalP) <|> varExprP <|> valExprP
 
 Parsing Statements
 ------------------
@@ -356,17 +365,17 @@ Next, use the expression parsers to build a statement parser
 > statementP :: Parser Statement
 > statementP = assignmentP <|> ifelseP <|> whileP <|> sequenceP <|> skipP 
 >
-> encloseP c p = do char c 
->                   x <- p
->                   char c
->                   return x
+> encloseP c1 c2 p = do spaces >> char c1 
+>                   	x <- p
+>                   	spaces >> char c2
+>                   	return x
 >
-> parenP = encloseP '('
-> braceP = encloseP '{'
+> parenP = encloseP '(' ')'
+> braceP = encloseP '{' '}'
 >
 > assignmentP :: Parser Statement		   
 > assignmentP = do v <- varP
->		   string ":="
+>		   spaces >> string ":="
 >		   e <- exprP
 >		   return (Assign v e)
 >
