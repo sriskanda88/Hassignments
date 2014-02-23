@@ -399,7 +399,7 @@ Next, use the expression parsers to build a statement parser
 > whileP :: Parser Statement
 > whileP = do spaces >> string "while"
 >	      exp <- exprP
->	      string "do"
+>	      spaces >> string "do"
 >	      s <- statementP
 >	      spaces >> string "endwhile"
 >	      return (While exp s)
