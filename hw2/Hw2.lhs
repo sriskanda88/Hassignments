@@ -297,7 +297,7 @@ Define a parser to match failed cases
 First, we will write parsers for the `Value` type
 
 > valueP :: Parser Value
-> valueP = spaces >> (intP <|> boolP)
+> valueP = (intP <|> boolP)
 
 To do so, fill in the implementations of
 
@@ -309,7 +309,7 @@ Next, define a parser that will accept a
 particular string `s` as a given value `x`
 
 > constP :: String -> a -> Parser a
-> constP s x = spaces >> string s >> return x
+> constP s x = string s >> return x
 
 and use the above to define a parser for boolean values 
 where `"true"` and `"false"` should be parsed appropriately.
@@ -320,7 +320,7 @@ where `"true"` and `"false"` should be parsed appropriately.
 Continue to use the above to parse the binary operators
 
 > opP :: Parser Bop 
-> opP = (constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> (constP ">=" Ge) <|> (constP ">" Gt) <|> (constP "<=" Le) <|> (constP "<" Lt)
+> opP = spaces >> ((constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> (constP ">" Gt) <|> (constP ">=" Ge) <|> (constP "<" Lt) <|> (constP "<=" Le))
  
 
 Parsing Expressions 
@@ -343,8 +343,8 @@ Use the above to write a parser for `Expression` values
 > valExprP = do a <- valueP
 >		return (Val(a))
 >
-> mychainl :: Parser Expression -> Parser Bop -> Parser Expression
-> p `mychainl` pop = p >>= rest
+> mychainE :: Parser Expression -> Parser Bop -> Parser Expression
+> p `mychainE` pop = p >>= rest
 >    where 
 >      rest x = grab x <|> return x 
 >      grab x = do o <- pop
@@ -352,10 +352,10 @@ Use the above to write a parser for `Expression` values
 >                  rest $ (Op o x y)
 >
 > evalP :: Parser Expression
-> evalP = factorP `mychainl` opP
+> evalP = factorP `mychainE` opP
 >
 > factorP :: Parser Expression
-> factorP = (parenP evalP) <|> varExprP <|> valExprP
+> factorP = spaces >> (parenP evalP <|> varExprP <|> valExprP)
 
 Parsing Statements
 ------------------
@@ -363,11 +363,20 @@ Parsing Statements
 Next, use the expression parsers to build a statement parser
 
 > statementP :: Parser Statement
-> statementP = assignmentP <|> ifelseP <|> whileP <|> sequenceP <|> skipP 
+> statementP = sequenceP
 >
-> encloseP c1 c2 p = do spaces >> char c1 
+> mychainS :: Parser Statement -> Parser [Char] -> Parser Statement
+> p `mychainS` pop = p >>= rest
+>    where
+>      rest x = grab x <|> return x
+>      grab x = do o <- pop
+>		   y <- p
+>                  rest $ (Sequence x y) 
+>
+> encloseP :: Char -> Char -> Parser a -> Parser a
+> encloseP c1 c2 p = do char c1
 >                   	x <- p
->                   	spaces >> char c2
+>                   	char c2
 >                   	return x
 >
 > parenP = encloseP '(' ')'
@@ -388,17 +397,24 @@ Next, use the expression parsers to build a statement parser
 >		return (If exp s1 s2) 
 >
 > whileP :: Parser Statement
-> whileP = do string "while"
->	      exp <- parenP exprP
->	      s <- braceP statementP
+> whileP = do spaces >> string "while"
+>	      exp <- exprP
+>	      string "do"
+>	      s <- statementP
+>	      spaces >> string "endwhile"
 >	      return (While exp s)
 >
-> sequenceP :: Parser Statement
-> sequenceP = do s1 <- statementP
->		 char ';'
->		 s2 <- statementP
->		 return (Sequence s1 s2)
+> actualstatementP :: Parser Statement 
+> actualstatementP = assignmentP <|> ifelseP <|> whileP <|> skipP 
 >
+> sequenceP :: Parser Statement
+> sequenceP = actualstatementP `mychainS` (spaces >> string ";\n")
+
+ sequenceP = do s1 <- actualstatementP
+		 spaces >> string ";\n"
+		 s2 <- statementP
+		 return (Sequence s1 s2)
+
 > skipP :: Parser Statement
 > skipP =  do string "no-op"
 >	      return (error "skip")
