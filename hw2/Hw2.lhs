@@ -12,6 +12,7 @@ title: Homework #2, Due Friday 2/24/14
 > import Text.Parsec.Combinator hiding (between)
 > import Text.Parsec.Char
 > import Text.Parsec.String
+> import Debug.Trace(trace)
 
 This week's homework is presented as a literate Haskell file,
 just like the lectures. This means that every line beginning with
@@ -291,9 +292,6 @@ Parsing Constants
 
 Define a parser to match failed cases
 
-> failP :: Parser Value
-> failP = return(IntVal(0)) 
-
 First, we will write parsers for the `Value` type
 
 > valueP :: Parser Value
@@ -320,8 +318,7 @@ where `"true"` and `"false"` should be parsed appropriately.
 Continue to use the above to parse the binary operators
 
 > opP :: Parser Bop 
-> opP = spaces >> ((constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> (constP ">" Gt) <|> (constP ">=" Ge) <|> (constP "<" Lt) <|> (constP "<=" Le))
- 
+> opP = spaces >> ((constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> try (constP ">=" Ge) <|> (constP ">" Gt) <|> try (constP "<=" Le) <|> (constP "<" Lt) <?> "No more Ops!!!")
 
 Parsing Expressions 
 -------------------
@@ -349,13 +346,14 @@ Use the above to write a parser for `Expression` values
 >      rest x = grab x <|> return x 
 >      grab x = do o <- pop
 >                  y <- p
+>		   spaces
 >                  rest $ (Op o x y)
 >
 > evalP :: Parser Expression
 > evalP = factorP `mychainE` opP
 >
 > factorP :: Parser Expression
-> factorP = spaces >> (parenP evalP <|> varExprP <|> valExprP)
+> factorP = spaces >> (try (parenP evalP) <|> try varExprP <|> try valExprP)
 
 Parsing Statements
 ------------------
@@ -364,14 +362,6 @@ Next, use the expression parsers to build a statement parser
 
 > statementP :: Parser Statement
 > statementP = sequenceP
->
-> mychainS :: Parser Statement -> Parser [Char] -> Parser Statement
-> p `mychainS` pop = p >>= rest
->    where
->      rest x = grab x <|> return x
->      grab x = do o <- pop
->		   y <- p
->                  rest $ (Sequence x y) 
 >
 > encloseP :: Char -> Char -> Parser a -> Parser a
 > encloseP c1 c2 p = do char c1
@@ -383,41 +373,46 @@ Next, use the expression parsers to build a statement parser
 > braceP = encloseP '{' '}'
 >
 > assignmentP :: Parser Statement		   
-> assignmentP = do v <- varP
+> assignmentP = do spaces
+>		   v <- varP
 >		   spaces >> string ":="
 >		   e <- exprP
 >		   return (Assign v e)
 >
 > ifelseP :: Parser Statement
-> ifelseP =  do string "if"
->		exp <- parenP exprP
->		s1 <- braceP statementP
->		string "else"
->		s2 <- braceP statementP
+> ifelseP =  do spaces >> string "if"
+>		exp <- exprP
+>		spaces >> string "then\n"
+>		s1 <- statementP
+>		spaces >> string "else\n"
+>		s2 <- statementP
+>		spaces >> string "endif"
 >		return (If exp s1 s2) 
 >
 > whileP :: Parser Statement
 > whileP = do spaces >> string "while"
 >	      exp <- exprP
->	      spaces >> string "do"
+>	      spaces >> string "do\n"
 >	      s <- statementP
 >	      spaces >> string "endwhile"
 >	      return (While exp s)
 >
+> mychainS :: Parser Statement -> Parser a -> Parser Statement
+> p `mychainS` pop = p >>= rest
+>    where
+>      rest x = grab x <|> return x
+>      grab x = do o <- pop
+>		   y <- p
+>                  rest $ (Sequence x y) 
+>
 > actualstatementP :: Parser Statement 
-> actualstatementP = assignmentP <|> ifelseP <|> whileP <|> skipP 
+> actualstatementP = try assignmentP <|> try ifelseP <|> try whileP <|> skipP 
 >
 > sequenceP :: Parser Statement
-> sequenceP = actualstatementP `mychainS` (spaces >> string ";\n")
-
- sequenceP = do s1 <- actualstatementP
-		 spaces >> string ";\n"
-		 s2 <- statementP
-		 return (Sequence s1 s2)
+> sequenceP = actualstatementP `mychainS` (string ";")
 
 > skipP :: Parser Statement
-> skipP =  do string "no-op"
->	      return (error "skip")
+> skipP =  spaces >> string "skip" >> return Skip
  
 When you are done, we can put the parser and evaluator together 
 in the end-to-end interpreter function
