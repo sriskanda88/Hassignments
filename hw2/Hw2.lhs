@@ -64,26 +64,33 @@ Define the following functions by filling in the "error" portion:
 1. Describe `foldl` and give an implementation:
 
 > myFoldl :: (a -> b -> a) -> a -> [b] -> a
-> myFoldl f b xs = error "TBD"
+> myFoldl f b [] = b
+> myFoldl f b (x:xs)= myFoldl f (f b x) xs
 
 2. Using the standard `foldl` (not `myFoldl`), define the list reverse function:
 
 > myReverse :: [a] -> [a]
-> myReverse xs = error "TBD"
+> myReverse xs = Prelude.foldl (\x y -> y:x) [] xs
 
 3. Define `foldr` in terms of `foldl`:
 
 > myFoldr :: (a -> b -> b) -> b -> [a] -> b
-> myFoldr f b xs = error "TBD"
+> myFoldr f b [] = b
+> myFoldr f b (x:xs) = f x (myFoldr f b xs)
 
 4. Define `foldl` in terms of the standard `foldr` (not `myFoldr`):
 
 > myFoldl2 :: (a -> b -> a) -> a -> [b] -> a
-> myFoldl2 f b xs = error "TBD"
+> myFoldl2 f b xs = Prelude.foldr (\x y -> f y x) b (reverse xs)
 
 5. Try applying `foldl` to a gigantic list. Why is it so slow?
    Try using `foldl'` (from [Data.List](http://www.haskell.org/ghc/docs/latest/html/libraries/base/Data-List.html#3))
    instead; can you explain why it's faster?
+
+The problem with foldl is the following: let's say we are trying to sum a gigantic list of integers say from 1 to 1 billion, what foldl will do is perform an expansion and lazy evaluation of the following (((((1+2)+3)+4)+5)+6)+... 1 billion). In fact it's not only slow but can cause a stack overflow as well!!
+
+Wherease in foldl' aggresive evaluation is done i.e. in the above example the moment the plus operation encounters 2 numbers, the addition is performed right there and then so at any moment you either have 1 number (after you've read the first number from the list, or right after the addition) or you have two (right before you perform the addition) so that you'll never have a gigantic list of addition operation like the above.
+
 
 Part 2: Binary Search Trees
 ===========================
@@ -97,7 +104,24 @@ Recall the following type of binary search trees:
 Define a `delete` function for BSTs of this type:
 
 > delete :: (Ord k) => k -> BST k v -> BST k v
-> delete k t = error "TBD"
+> delete _ Emp = Emp
+> delete k' tree = Prelude.foldl (\t (k, v) ->  if k /= k'
+>                                         	then insertBST k v t
+>                                         	else t ) Emp (toListBST tree)
+
+> toListBST :: BST t t1->[(t, t1)]
+> toListBST = foldBST (\k v l r -> l ++ [(k, v)] ++ r) []
+
+> foldBST :: (t->t1->t2->t2->t2)->t2->BST t t1->t2
+> foldBST op base Emp = base
+> foldBST op base (Bind k v l r) = op k v (foldBST op base l) (foldBST op base r)
+
+> insertBST :: (Ord k) => k->v->BST k v->BST k v
+> insertBST k v Emp = Bind k v Emp Emp
+> insertBST k v (Bind k' v' l r)
+>       | k == k' = Bind k v l r
+>       | k < k'  = Bind k' v' (insertBST k v l) r
+>       | otherwise = Bind k' v' l (insertBST k v r)
 
 Part 3: An Interpreter for WHILE 
 ================================
