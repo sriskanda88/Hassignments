@@ -342,7 +342,7 @@ where `"true"` and `"false"` should be parsed appropriately.
 Continue to use the above to parse the binary operators
 
 > opP :: Parser Bop 
-> opP = spaces >> ((constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> try (constP ">=" Ge) <|> (constP ">" Gt) <|> try (constP "<=" Le) <|> (constP "<" Lt) <?> "No more Ops!!!")
+> opP = spaces >> ((constP "+" Plus) <|> (constP "-" Minus) <|> (constP "*" Times) <|> (constP "/" Divide) <|> try (constP ">=" Ge) <|> (constP ">" Gt) <|> try (constP "<=" Le) <|> (constP "<" Lt) <?> "Operator expected or undefined operator used!!!")
 
 Parsing Expressions 
 -------------------
@@ -359,9 +359,11 @@ Use the above to write a parser for `Expression` values
 > exprP = evalP 
 
 > varExprP = do a <- varP
+>		spaces
 >		return (Var(a))
 
 > valExprP = do a <- valueP
+>		spaces
 >		return (Val(a))
 >
 > mychainE :: Parser Expression -> Parser Bop -> Parser Expression
