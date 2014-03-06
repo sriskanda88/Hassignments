@@ -51,9 +51,9 @@ Problem 0: All About You
 Tell us your name, email and student ID, by replacing the respective
 strings below
 
-> myName  = "Write Your Name  Here"
-> myEmail = "Write Your Email Here"
-> mySID   = "Write Your SID   Here"
+> myName  = "Sriskanda Shamasunder"
+> myEmail = "skanda@ucsd.edu"
+> mySID   = "A53054738"
 
 
 Problem 1: All About `foldl`
