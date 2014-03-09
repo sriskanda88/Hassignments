@@ -110,13 +110,90 @@ You can ignore the bits about `StateT` for now.
 
 Use monad transformers to write a function
 
+> evalExpression :: (MonadState Store m, MonadError Value m, MonadWriter String m) => Expression -> m Value
+> evalExpression (Var v) = do state <- get
+>                             case (Data.Map.lookup v state) of
+>                                Nothing -> throwError (IntVal 0)
+>                                Just val  -> return val
+> evalExpression (Val v) = return v
+> evalExpression (Op bop exp1 exp2) = do expr1 <- evalExpression exp1
+>                                        expr2 <- evalExpression exp2
+>                                        applyOperation expr1 expr2 bop
+
+> applyOperation:: (MonadState Store m, MonadError Value m, MonadWriter String m) => Value->Value->Bop->m Value
+> applyOperation (IntVal a) (IntVal b) bop = case bop of
+>                                               Plus->return $ IntVal (a+b)
+>                                               Minus->return $ IntVal (a-b)
+>                                               Times->return $ IntVal (a*b)
+>                                               Divide->case b of
+>                                                            0 -> throwError $ IntVal 1
+>                                                            _ -> return $ IntVal (a `div` b)
+>                                               Gt->return $ BoolVal (a > b)
+>                                               Ge->return $ BoolVal (a >= b)
+>                                               Lt->return $ BoolVal (a < b)
+>                                               Le->return $ BoolVal (a <= b)
+> applyOperation (BoolVal a) (BoolVal b) bop = return $ BoolVal (a == b)
+> applyOperation _ _ bop = throwError $ IntVal 2
+
 > evalS :: (MonadState Store m, MonadError Value m, MonadWriter String m) => Statement -> m ()
-> evalS = error "TODO"
+> evalS (Assign variable expression) = do state <- get
+>                                         exprValue <- evalExpression expression
+>                                         put $ insert variable exprValue state
+> evalS (If e s1 s2) = do exprValue <- evalExpression e
+>                         case exprValue of
+>                               (BoolVal True) -> evalS s1
+>                               (BoolVal False) -> evalS s2
+> evalS (While e s) = do exprValue <- evalExpression e
+>                        case exprValue of
+>                             (BoolVal True) -> evalS s >> evalS (While e s)
+>                             (BoolVal False) -> evalS Skip
+> evalS (Sequence e1 e2) = evalS e1 >> evalS e2
+> evalS (Skip) = return ()
+> evalS (Print s e) = do exprValue <- evalExpression e
+>                        tell (s ++ (show exprValue) ++ "\n")
+>                        return ()
+> evalS (Throw e) = do exprValue <- evalExpression e
+>                      throwError exprValue
+> evalS (Try s1 v s2) = catchError (evalS s1)
+>                                     (\err -> do
+>                                              state <- get
+>                                              put $ insert v err state
+>                                              evalS s2)
 
 and use the above function to implement a second function
 
+> type WSE = ErrorT Value (StateT Store (Writer String))
+> instance Error Value where {}
+
+> executeWSE::Store->Statement->WSE ()
+> executeWSE store statement = do put store
+>                                 evalS statement
+
 > execute :: Store -> Statement -> (Store, Maybe Value, String)
-> execute = error "TODO"
+> execute st s' = (st', exn, log)
+>                 where ((exn', st'), log) = runWriter (runStateT (runErrorT (executeWSE st s')) st)
+>                       exn = either Just (\_ -> Nothing) exn'
+
+Personal Note:
+Everything below here is a failed initial attempt at tackling the problem, it's included here for personal review to demonstrate
+why the approach will not work
+
+type WSE = StateT Store (ErrorT Value (Writer String))
+exe st s' = runWriter (runStateT (runErrorT (executeWSE st s')) st)
+
+The below is the return value of "exe" function above
+((Either Value ((), Store), String) --> This one does not make sense since it will either return a Value or a Store i.e.
+we can't have both.
+
+Compare the return value above with ((Either Value (), Store), String) which is what we get from inverting the order giving
+us the correct result
+
+Additionally:
+1. runWriter takes one parameter
+2. runErrorT takes one parameter
+3. runStateT takes 2 parameter, so if we invert the order, make sure that we also reorder parenthesis.
+
+End of Personal Note
 
 such that `execute st s` returns a triple `(st', exn, log)` where 
 
@@ -217,6 +294,25 @@ Again, the program as a Haskell value:
 >                             "E"
 >                             (Assign "Z" $ Op Plus (Var "E") (Var "A"))]
 
+> testprogmine3 = mksequence [Assign "X" $ Val $ IntVal 0,
+>                         Assign "Y" $ Val $ IntVal 1,
+>                         Try (If (Op Lt (Var "X") (Var "Y"))
+>                                 (mksequence [Assign "A" $ Val $ IntVal 100,
+>                                              Assign "Monkey" $ Op Divide (Var "Y") (Var "X"),
+>                                              Assign "B" $ Val $ IntVal 200])
+>                                 Skip)
+>                             "E"
+>                             (Assign "Z" $ Op Plus (Var "E") (Var "A"))]
+
+> testprogmine4 = mksequence [Assign "X" $ Val $ IntVal 0,
+>                         Assign "Y" $ Val $ IntVal 1,
+>                         Try (If (Op Lt (Var "X") (Var "Y"))
+>                                 (mksequence [Assign "A" $ Val $ IntVal 100,
+>                                              Assign "Monkey" $ Op Divide (Var "Y") (Var "X"),
+>                                              Assign "B" $ Val $ IntVal 200])
+>                                 Skip)
+>                             "E"
+>                             (Assign "Z" $ Op Plus (Var "E") (Var "RJ"))]
 
 Problem 2: Circuit Testing
 ==========================
