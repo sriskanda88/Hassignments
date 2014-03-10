@@ -567,8 +567,8 @@ yield zero.
 
 > prop_bitSubtractor_Correct ::  Signal -> [Bool] -> Bool
 > prop_bitSubtractor_Correct bin xs =
->   binary (sampleN out) == maximum ([binary xs - binary (sample1 bin),0])
->   where (out, bout) = bitSubtractor (bin, map lift0 xs)
+>   binary (sampleN diff) == if (binary xs) >= (binary (sample1 bin)) then (binary xs - binary (sample1 bin)) else 0
+>   where (diff, bout) = bitSubtractor (bin, map lift0 xs)
 
 2. Using the `bitAdder` circuit as a model, deﬁne a `bitSubtractor` 
 circuit that implements this functionality and use QC to check that 
@@ -581,12 +581,12 @@ your behaves correctly.
 
 > bitSubtractor :: (Signal, [Signal]) -> ([Signal], Signal)
 > bitSubtractor (bin, []) = ([], bin)
-> bitSubtractor (bin, x:xs) = if (bout === high) then (x:xs, low) else (diff, bout)
+> bitSubtractor (bin, x:xs) = (muxN ((x:xs), diff, bout), bout)
 >	where (diff, bout) = bitSub (bin, x:xs)
 
 > bitSub (bin, [])    = ([], bin)
 > bitSub (bin, x:xs)  = (diff:diffs, bout)
->  	 where (diff, b)     = halfsubtract (x,bin)
+>  	 where (diff, b)     = halfsubtract (x, bin)
 >    	       (diffs, bout) = bitSub (b, xs)
 >
 > test3 = probe [("bin",bin), ("in4",in4), ("in3",in3), ("in2",in2), ("in1",in1),
@@ -615,7 +615,10 @@ for a `multiplier` circuit that takes two binary numbers of arbitrary
 width as input and outputs their product.
 
 > prop_Multiplier_Correct ::  [Bool] -> [Bool] -> Bool
-> prop_Multiplier_Correct = error "TODO"
+> prop_Multiplier_Correct l1 l2 =
+>   binary (sampleN prod) == binary l1 * binary l2
+>   where prod = multiplier (map lift0 l1, map lift0 l2)
+
 
 4. Deﬁne a `multiplier` circuit and check that it satisﬁes your 
 speciﬁcation. (Looking at how adder is deﬁned will help with this, 
@@ -624,25 +627,24 @@ recursive structure should work, think about how to multiply two
 binary numbers on paper.)
 
 > multiplier :: ([Signal], [Signal]) -> [Signal]
-> multiplier (x:xs, ys) =  mulAux (x:xs) ys [low]
+> multiplier ([], []) = []
+> multiplier ([], _) = []
+> multiplier (_, []) = []
+> multiplier (x:xs, ys) = mulAux (x:xs) ys zs
 >	where
->	  mulAux [] ys sum = sum 
->	  mulAux (x:xs) ys sum = adder ((mulAux xs ys sum), tmpProd)
+>	  (z:zs) = (map (\_ -> low) ys)
+>	  mulAux [] _ sum = sum
+>	  mulAux (x:xs) ys sum = mulAux xs ys (adder(sum, tmpProd))
 >		where
->		  prod = muxN ys (map (\_ -> low) ys) x
->		  tmpProd = (take (length (sum) - length (prod) + 1) (repeat low)) : prod
-
- adder (xs, ys) =
-    let (sums,cout) = adderAux (low, xs, ys)
-    in sums ++ [cout]
-    where
-      adderAux (cin, [], [])     = ([], cin)
-      adderAux (cin, x:xs, y:ys) = (sum:sums, cout)
-                                   where (sum, c) = fulladd (cin,x,y)
-                                         (sums,cout) = adderAux (c,xs,ys)
-      adderAux (cin, [], ys)     = adderAux (cin, [low], ys)
-      adderAux (cin, xs, [])     = adderAux (cin, xs, [low])
-
+>		  prod = muxN (ys, (map (\_ -> low) ys), x)
+>		  tmpProd = (take (length (sum) - length (prod)) (repeat low)) ++ prod
+>
+> test4 = probe [ ("x1", x1), ("x2", x2), ("x3", x3), ("x4", x4),
+>		  ("y1", y1), ("y2", y2), ("y3", y3), ("y4", y4),
+>		  ("s1", s1), ("s2", s2), ("s3", s3), ("s4", s4), ("s5", s5), ("s6", s6), ("s7", s7), ("s8", s8)]
+>   where xs@[x1, x2, x3, x4] = [high,low,high,low]
+>         ys@[y1, y2, y3, y4] = [high,low,low,high]
+>         [s1, s2, s3, s4, s5, s6,s7,s8]   = multiplier (xs, ys)
 
 [1]: http://www.cis.upenn.edu/~bcpierce/courses/552-2008/resources/circuits.hs
 
